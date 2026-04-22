@@ -8,7 +8,7 @@ ShadowTrace is an advanced cybersecurity project that captures live network traf
 ## 📸 Dashboard Preview
 
 ### 🔹 Live Dashboard
-![Dashboard Overview](Screenshot 1.jpg)
+![Dashboard Overview](Screenshot 1.png)
 *Interactive world map with traffic analytics and global connection tracking.*
 
 ### 🔹 Backend Engine
