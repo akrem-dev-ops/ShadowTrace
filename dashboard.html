@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShadowTrace • Cyber Command</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Google Font for Professional Look -->
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        /* ----- GLOBAL CYBERPUNK THEME ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Share Tech Mono', 'Courier New', monospace;
+            background: #070b14;
+            color: #e0f2ff;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        /* Animated Radar Grid Background */
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+            animation: radarMove 10s linear infinite;
+        }
+        @keyframes radarMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 50px 50px; }
+        }
+        /* Main Layout */
+        .main-panel {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 2;
+            backdrop-filter: blur(2px);
+        }
+        .side-panel {
+            flex: 1.2;
+            max-width: 320px;
+            background: rgba(8, 18, 28, 0.75);
+            backdrop-filter: blur(12px);
+            border-left: 1px solid rgba(0, 255, 255, 0.3);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 15px;
+            z-index: 5;
+            box-shadow: -5px 0 30px rgba(0,0,0,0.7);
+            overflow-y: auto;
+        }
+        /* Header */
+        #header {
+            padding: 15px 25px;
+            background: rgba(8, 18, 28, 0.7);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid #0ff;
+            text-align: center;
+            box-shadow: 0 5px 30px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        #header h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            letter-spacing: 6px;
+            text-shadow: 0 0 20px #0ff, 0 0 40px #00ffff80;
+            font-weight: 400;
+        }
+        .dev-signature {
+            font-size: 14px;
+            color: #8ab4f8;
+            margin-top: 5px;
+            letter-spacing: 2px;
+        }
+        .dev-signature span {
+            color: #0ff;
+            font-weight: bold;
+            text-shadow: 0 0 10px #0ff;
+        }
+        #stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background: rgba(0, 20, 40, 0.6);
+            backdrop-filter: blur(4px);
+            padding: 8px 25px;
+            border-radius: 30px;
+            border: 1px solid #0ff;
+            box-shadow: 0 0 20px rgba(0,255,255,0.1);
+            font-size: 1.2rem;
+        }
+        .export-btn {
+            background: transparent;
+            color: #0ff;
+            border: 1.5px solid #0ff;
+            padding: 8px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 15px rgba(0,255,255,0.2);
+        }
+        .export-btn:hover {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 40px #0ff;
+        }
+        /* Map Container */
+        #map {
+            flex: 1;
+            width: 100%;
+            background: #050a10;
+            z-index: 2;
+            border-bottom: 1px solid #0ff;
+        }
+        /* Table Container */
+        #table-container {
+            background: rgba(5, 12, 20, 0.8);
+            backdrop-filter: blur(8px);
+            border-top: 1px solid #0ff;
+            overflow-y: auto;
+            padding: 10px 15px;
+            max-height: 220px;
+            z-index: 5;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            color: #c0e0ff;
+            font-size: 13px;
+        }
+        th {
+            background: #102a44;
+            color: #0ff;
+            position: sticky;
+            top: 0;
+            padding: 10px 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid #0ff;
+        }
+        td {
+            padding: 8px 5px;
+            border-bottom: 1px solid #1e3a5a;
+        }
+        .badge {
+            background: #0a2647;
+            color: #0ff;
+            padding: 3px 8px;
+            border-radius: 12px;
+            border: 1px solid #0ff;
+            font-weight: bold;
+        }
+        .flag-icon {
+            width: 22px;
+            height: 15px;
+            object-fit: cover;
+            border-radius: 3px;
+            margin-right: 5px;
+            vertical-align: middle;
+            border: 1px solid #2a5a8a;
+        }
+        /* New Row Animation */
+        @keyframes rowGlow {
+            0% { background-color: rgba(0, 255, 255, 0.2); }
+            100% { background-color: transparent; }
+        }
+        .new-row {
+            animation: rowGlow 2.5s ease-out;
+        }
+        /* Side Panel Components */
+        .panel-title {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #0ff;
+            border-bottom: 1px dashed #0ff;
+            padding-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        .country-stat-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 5px;
+            border-bottom: 1px solid #1a3a5a;
+            font-size: 0.95rem;
+        }
+        .country-stat-item img {
+            margin-right: 12px;
+        }
+        .stat-value {
+            margin-left: auto;
+            color: #0ff;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        /* Toast Notification */
+        #toast {
+            visibility: hidden;
+            min-width: 280px;
+            background: #0a1a2a;
+            color: #0ff;
+            text-align: center;
+            border-radius: 40px;
+            padding: 12px 20px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            top: 30px;
+            transform: translateX(-50%);
+            border: 1px solid #0ff;
+            box-shadow: 0 0 50px #0ff;
+            font-weight: bold;
+            letter-spacing: 2px;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+        }
+        /* Pulse status */
+        .pulse-text {
+            animation: textPulse 1.5s infinite;
+        }
+        @keyframes textPulse {
+            0% { opacity: 0.6; text-shadow: 0 0 5px #0ff; }
+            50% { opacity: 1; text-shadow: 0 0 20px #0ff; }
+            100% { opacity: 0.6; text-shadow: 0 0 5px #0ff; }
+        }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #0a1420; }
+        ::-webkit-scrollbar-thumb { background: #0ff; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <!-- Toast Notification -->
+    <div id="toast">🎯 New Target Acquired</div>
+
+    <!-- Main Area (Map + Table) -->
+    <div class="main-panel">
+        <div id="header">
+            <h1>🌍 SHADOW TRACE</h1>
+            <div class="dev-signature">[ developed by <span>Akrem Chikhaoui</span> ]</div>
+            <div id="stats">
+                <div class="stat-card">📡 <span id="packet-count">0</span> Packets</div>
+                <div class="stat-card">🎯 <span id="unique-ips">0</span> Hosts</div>
+                <button id="export-csv-btn" class="export-btn">📥 Export CSV</button>
+            </div>
+        </div>
+        <div id="map"></div>
+        <div id="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Source IP</th>
+                        <th>Location</th>
+                        <th>OS</th>
+                        <th>Port</th>
+                    </tr>
+                </thead>
+                <tbody id="packet-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Side Panel (Statistics & Top Countries) -->
+    <div class="side-panel">
+        <div class="panel-title">📊 LIVE TARGET STATS</div>
+        <div style="margin-bottom: 25px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span>Connection</span>
+                <span id="conn-status-side" style="color: #0f0;">● ONLINE</span>
+            </div>
+            <div style="height: 4px; background: #1a3a5a; border-radius: 4px;">
+                <div id="signal-bar" style="width: 100%; height: 100%; background: #0ff; border-radius: 4px; box-shadow: 0 0 10px #0ff;"></div>
+            </div>
+        </div>
+
+        <div class="panel-title">🌐 TOP COUNTRIES</div>
+        <div id="country-stats-container">
+            <!-- Dynamically filled -->
+            <div class="country-stat-item">
+                <span style="color: #8ab4f8;">Waiting for data...</span>
+            </div>
+        </div>
+        
+        <div style="margin-top: auto; font-size: 12px; color: #5a7a9a; text-align: center; padding-top: 20px;">
+            SHADOW TRACE v1.0<br>
+            <span style="color: #0ff;">SECURE CHANNEL</span>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        (function() {
+            "use strict";
+
+            // ---------- CONFIGURATION ----------
+            const WS_URL = 'ws://localhost:8765';
+            const MAX_TABLE_ROWS = 12;
+            
+            // Audio feedback
+            const alertSound = new Audio('data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVoAAACAgYGBgYCAgYGBgYGBgYCAgIGAgICBgIGAgYGBgYGBgIGAgIGAgICBgIGAgYGBgYGBgIGAgIGAgICBgIGAgYGBgYGBgID//w==');
+            alertSound.volume = 0.2;
+
+            // ---------- STATE ----------
+            const map = L.map('map', { zoomControl: true, zoomAnimation: true }).setView([20, 0], 2);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            const markersLayer = L.layerGroup().addTo(map);
+            const markerMap = new Map();
+            
+            let packetCount = 0;
+            const uniqueIPs = new Set();
+            const capturedPackets = [];
+            const countryCount = new Map(); // For side panel stats
+            
+            // DOM elements
+            const packetCountSpan = document.getElementById('packet-count');
+            const uniqueIPsSpan = document.getElementById('unique-ips');
+            const connStatusSide = document.getElementById('conn-status-side');
+            const tableBody = document.getElementById('packet-table-body');
+            const toast = document.getElementById('toast');
+            const countryContainer = document.getElementById('country-stats-container');
+
+            // ---------- FLAG HELPER (Using flagcdn.com) ----------
+            const flagCache = new Map();
+            function getFlagImgUrl(countryCode) {
+                if (!countryCode) return null;
+                const code = countryCode.toLowerCase();
+                return `https://flagcdn.com/w40/${code}.png`;
+            }
+            
+            function renderFlagImg(countryCode, altText) {
+                if (!countryCode) return '🌐';
+                const url = getFlagImgUrl(countryCode);
+                return `<img class="flag-icon" src="${url}" alt="${altText}" loading="lazy" onerror="this.style.display='none'">`;
+            }
+
+            // ---------- TOAST ----------
+            function showToast(msg) {
+                toast.textContent = msg;
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+            }
+
+            // ---------- WEBSOCKET ----------
+            const ws = new WebSocket(WS_URL);
+            ws.onopen = () => {
+                connStatusSide.innerHTML = '● ONLINE';
+                connStatusSide.style.color = '#0f0';
+            };
+            ws.onclose = () => {
+                connStatusSide.innerHTML = '● OFFLINE';
+                connStatusSide.style.color = '#f00';
+            };
+            ws.onerror = () => {
+                connStatusSide.innerHTML = '● ERROR';
+                connStatusSide.style.color = '#f00';
+            };
+
+            // ---------- UPDATE SIDEBAR STATS ----------
+            function updateSidebarStats() {
+                if (countryCount.size === 0) {
+                    countryContainer.innerHTML = '<div class="country-stat-item"><span style="color: #8ab4f8;">No data yet...</span></div>';
+                    return;
+                }
+                const sorted = Array.from(countryCount.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6);
+                let html = '';
+                sorted.forEach(([code, count]) => {
+                    const flagImg = renderFlagImg(code, code);
+                    const countryName = code || 'Unknown';
+                    html += `
+                        <div class="country-stat-item">
+                            ${flagImg} ${countryName}
+                            <span class="stat-value">${count}</span>
+                        </div>
+                    `;
+                });
+                countryContainer.innerHTML = html;
+            }
+
+            // ---------- TABLE MANAGEMENT ----------
+            function addTableRow(data) {
+                const row = document.createElement('tr');
+                const time = new Date(data.timestamp).toLocaleTimeString();
+                const loc = data.location;
+                let locationHtml = 'Unknown';
+                if (loc) {
+                    const flagHtml = renderFlagImg(loc.countryCode || (loc.country ? loc.country.slice(0,2) : ''), loc.country);
+                    locationHtml = `${flagHtml} ${loc.city || '?'}, ${loc.country || '?'}`;
+                }
+                
+                row.innerHTML = `
+                    <td>${time}</td>
+                    <td><span class="badge">${data.src_ip}</span></td>
+                    <td>${locationHtml}</td>
+                    <td>${data.os_guess || '?'}</td>
+                    <td>${data.sport} → ${data.dport}</td>
+                `;
+                row.classList.add('new-row');
+                tableBody.prepend(row);
+                while (tableBody.children.length > MAX_TABLE_ROWS) {
+                    tableBody.removeChild(tableBody.lastChild);
+                }
+            }
+
+            // ---------- MAP PULSE EFFECT ----------
+            function addMapPulse(lat, lon) {
+                const pulseIcon = L.divIcon({
+                    className: 'pulse-marker',
+                    html: '<div style="background: rgba(255,50,50,0.7); width: 16px; height: 16px; border-radius: 50%; border: 2px solid #ffaa00; animation: pulseRing 1.8s ease-out infinite; box-shadow: 0 0 30px #f00;"></div>',
+                    iconSize: [16, 16]
+                });
+                const marker = L.marker([lat, lon], { icon: pulseIcon, zIndexOffset: 1000 }).addTo(markersLayer);
+                setTimeout(() => markersLayer.removeLayer(marker), 2500);
+            }
+
+            function updateMap(data) {
+                if (!data.location || !data.location.lat || !data.location.lon) return;
+                const lat = data.location.lat;
+                const lon = data.location.lon;
+                const ip = data.src_ip;
+                addMapPulse(lat, lon);
+                
+                const popupContent = `
+                    <b>${ip}</b><br>
+                    ${data.location.city || '?'}, ${data.location.country || '?'}<br>
+                    ${data.os_guess || 'Unknown'}<br>
+                    ${data.sport} → ${data.dport}
+                `;
+                if (markerMap.has(ip)) {
+                    const m = markerMap.get(ip);
+                    m.setLatLng([lat, lon]);
+                    m.setPopupContent(popupContent);
+                    m.openPopup();
+                } else {
+                    const m = L.marker([lat, lon], { riseOnHover: true }).bindPopup(popupContent);
+                    markersLayer.addLayer(m);
+                    markerMap.set(ip, m);
+                    m.openPopup();
+                    setTimeout(() => {
+                        if (markerMap.get(ip) === m) {
+                            markersLayer.removeLayer(m);
+                            markerMap.delete(ip);
+                        }
+                    }, 60000);
+                }
+            }
+
+            // ---------- INCOMING DATA ----------
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    capturedPackets.push(data);
+                    
+                    const isNewIP = !uniqueIPs.has(data.src_ip);
+                    packetCount++;
+                    uniqueIPs.add(data.src_ip);
+                    packetCountSpan.textContent = packetCount;
+                    uniqueIPsSpan.textContent = uniqueIPs.size;
+                    
+                    // Update country stats
+                    if (data.location && data.location.countryCode) {
+                        const cc = data.location.countryCode;
+                        countryCount.set(cc, (countryCount.get(cc) || 0) + 1);
+                        updateSidebarStats();
+                    } else if (data.location && data.location.country) {
+                        // fallback if no countryCode
+                        const cc = data.location.country.slice(0,2).toUpperCase();
+                        countryCount.set(cc, (countryCount.get(cc) || 0) + 1);
+                        updateSidebarStats();
+                    }
+                    
+                    if (isNewIP) {
+                        alertSound.play().catch(e=>{});
+                        showToast(`🎯 New Target: ${data.src_ip}`);
+                    }
+                    
+                    addTableRow(data);
+                    updateMap(data);
+                    
+                } catch (e) {
+                    console.error('Invalid JSON', e);
+                }
+            };
+
+            // ---------- CSV EXPORT ----------
+            function exportCSV() {
+                if (!capturedPackets.length) { alert('No data'); return; }
+                const headers = ['Timestamp','IP','Country','City','OS','Proto','SrcPort','DstPort','TTL','ISP'];
+                const rows = capturedPackets.map(p => [
+                    p.timestamp, p.src_ip, p.location?.country||'', p.location?.city||'',
+                    p.os_guess, p.protocol, p.sport, p.dport, p.ttl, p.location?.isp||''
+                ]);
+                let csv = headers.join(',') + '\n';
+                rows.forEach(r => { csv += r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',') + '\n'; });
+                const blob = new Blob([csv], {type: 'text/csv'});
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `shadowtrace_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }
+            document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+            
+            // Add pulse CSS if not present
+            if (!document.getElementById('pulse-style')) {
+                const style = document.createElement('style');
+                style.id = 'pulse-style';
+                style.textContent = `@keyframes pulseRing { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }`;
+                document.head.appendChild(style);
+            }
+        })();
+    </script>
+</body>
+</html>
